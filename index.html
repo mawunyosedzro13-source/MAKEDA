@@ -1,0 +1,923 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Makeda — Mkaikai — mandeul_eojin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     TOKENS — red & black, with a couple of extra depth stops
+     so panels and cards read as layers rather than flat blocks.
+     ============================================================ */
+  :root{
+    --red:        #E42A1D;
+    --red-light:  #FF6A52;
+    --red-deep:   #7A0F12;
+    --bg:         #0A0808;
+    --bg-2:       #151010;
+    --bg-3:       #1C1616;
+    --line:       rgba(255,255,255,.12);
+    --fg:         #F6F3EF;
+    --on-red:     #FFFFFF;
+    --fg-70:      rgba(246,243,239,.68);
+    --fg-45:      rgba(246,243,239,.42);
+    --chrome-1:   #E9EBEE;
+    --chrome-2:   #9AA0A8;
+    --chrome-3:   #5C6067;
+
+    --display: 'Unbounded', sans-serif;
+    --mono: 'Space Mono', monospace;
+    --body: 'Inter', sans-serif;
+
+    --container: 1240px;
+    --edge: clamp(24px, 6vw, 88px);
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:
+      radial-gradient(1100px 700px at 50% -8%, #211010 0%, transparent 60%),
+      var(--bg);
+    color:var(--fg);
+    font-family:var(--body);
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{ color:inherit; text-decoration:none; }
+  ul{ list-style:none; }
+  img,svg{ display:block; max-width:100%; }
+  ::selection{ background:var(--red); color:var(--on-red); }
+
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:998;
+    opacity:.05; mix-blend-mode:screen;
+    background-image:radial-gradient(#fff .6px, transparent .6px);
+    background-size:3px 3px;
+  }
+
+  .cursor-glow{
+    position:fixed; top:0; left:0; width:520px; height:520px;
+    margin-left:-260px; margin-top:-260px; border-radius:50%;
+    background:radial-gradient(circle, rgba(228,42,29,.20), transparent 70%);
+    pointer-events:none; z-index:5; mix-blend-mode:screen;
+    opacity:0; transition:opacity .4s ease;
+  }
+  @media (max-width:768px){ .cursor-glow{ display:none; } }
+
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--red);
+  }
+
+  /* ============================================================
+     NAV
+     ============================================================ */
+  .nav{
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px var(--edge);
+    background:rgba(10,8,8,.55);
+    backdrop-filter:blur(14px) saturate(140%);
+    border-bottom:1px solid var(--line);
+  }
+  .nav__mark{
+    font-family:var(--display); font-weight:800; font-size:20px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .nav__mark span{
+    width:9px; height:9px; background:var(--red); border-radius:1px;
+    display:inline-block; transform:rotate(45deg);
+    box-shadow:0 0 14px rgba(228,42,29,.7);
+  }
+  .nav__links{
+    display:flex; gap:32px;
+    font-family:var(--mono); font-size:12px; letter-spacing:.1em;
+    text-transform:uppercase;
+  }
+  .nav__links a{ position:relative; padding-bottom:3px; color:var(--fg-70); transition:color .2s ease; }
+  .nav__links a:hover{ color:var(--fg); }
+  .nav__links a::after{
+    content:''; position:absolute; left:0; bottom:0; width:0; height:1.5px;
+    background:var(--red); transition:width .25s ease;
+  }
+  .nav__links a:hover::after{ width:100%; }
+  @media (max-width:700px){ .nav__links{ display:none; } }
+
+  /* ============================================================
+     HERO — real WebGL scene behind the name
+     ============================================================ */
+  .hero{
+    position:relative;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center;
+    padding:150px var(--edge) 70px;
+    overflow:hidden;
+  }
+  .hero__scene{ position:absolute; inset:0; z-index:1; }
+  .hero__scene canvas{ display:block; width:100% !important; height:100% !important; }
+
+  .hero__content{ position:relative; z-index:2; max-width:840px; }
+  .hero__content .eyebrow{ display:block; margin-bottom:18px; }
+  .hero__name{
+    font-family:var(--display); font-weight:900;
+    font-size:clamp(60px, 12.5vw, 152px);
+    line-height:.92;
+    letter-spacing:-.01em;
+    color:var(--fg);
+    text-shadow:0 20px 60px rgba(0,0,0,.55);
+  }
+  .hero__aliases{
+    display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+    margin:22px 0 26px;
+  }
+  .pill{
+    font-family:var(--mono); font-size:12px; letter-spacing:.05em;
+    padding:7px 14px; border-radius:100px;
+    border:1px solid var(--fg);
+    background:rgba(10,8,8,.35); backdrop-filter:blur(6px);
+  }
+  .pill--alt{ background:var(--red); border-color:var(--red); color:var(--on-red); box-shadow:0 8px 24px -8px rgba(228,42,29,.7); }
+  .hero__sub{
+    font-size:17px; color:var(--fg-70); line-height:1.6;
+    max-width:520px; margin:0 auto;
+  }
+  .scrollcue{
+    position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+    z-index:2;
+    font-family:var(--mono); font-size:10px; letter-spacing:.2em;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    color:var(--fg-45);
+  }
+  .scrollcue span{ width:1px; height:34px; background:var(--fg-45); position:relative; overflow:hidden; }
+  .scrollcue span::after{
+    content:''; position:absolute; top:-100%; left:0; width:100%; height:100%;
+    background:var(--red); animation:drip 1.8s ease-in-out infinite;
+  }
+  @keyframes drip{ 0%{ top:-100%; } 60%,100%{ top:100%; } }
+
+  .hero__photo{
+    position:absolute; z-index:3; right:max(3vw, calc(50% - 650px)); bottom:12%;
+    width:130px; aspect-ratio:3/4; border-radius:12px; overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow:0 24px 50px -18px rgba(0,0,0,.65);
+    transform:rotate(6deg);
+    animation:photo-float 6s ease-in-out infinite;
+  }
+  .hero__photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+  @keyframes photo-float{ 0%,100%{ transform:rotate(6deg) translateY(0); } 50%{ transform:rotate(4deg) translateY(-10px); } }
+  /* The hero photo only has room beside the headline on wide screens. */
+  @media (max-width:1350px){ .hero__photo{ display:none; } }
+
+  /* ============================================================
+     FLOATING SNAPSHOTS — scattered candid photos, tucked into the
+     margins of a few sections. Hidden below 1000px so they never
+     crowd the content on tablet/mobile.
+     ============================================================ */
+  .float-photo{
+    /* These images sit in the document flow between sections instead of
+       being positioned over them, so they cannot cover copy or artwork. */
+    --tilt:0deg;
+    position:relative; z-index:0; display:block;
+    width:min(clamp(132px, 20vw, 220px), calc(100vw - (var(--edge) * 2))) !important;
+    max-width:100%;
+    margin:0 auto clamp(22px, 4vw, 48px);
+    overflow:hidden; border-radius:12px;
+    border:1px solid var(--line);
+    box-shadow:0 22px 46px -18px rgba(0,0,0,.65);
+    transform:rotate(var(--tilt));
+    animation:decorative-drift 7s ease-in-out infinite;
+  }
+  .float-photo img, .float-photo video{ width:100%; height:100%; object-fit:cover; display:block; }
+  @keyframes decorative-drift{
+    0%,100%{ transform:rotate(var(--tilt)) translateY(0); }
+    50%{ transform:rotate(var(--tilt)) translateY(-8px); }
+  }
+  .float-photo--1{ --tilt:7deg; aspect-ratio:3/5; animation-delay:.2s; }
+  .float-photo--2{ --tilt:-6deg; aspect-ratio:3/5; animation-delay:1.1s; }
+  .float-photo--3{
+    --tilt:5deg; width:min(clamp(220px, 32vw, 360px), calc(100vw - (var(--edge) * 2))) !important;
+    aspect-ratio:3/4; animation-delay:.6s;
+  }
+  .float-photo--4{ --tilt:-5deg; aspect-ratio:1/1.3; animation-delay:1.6s; }
+  .float-photo--5{ --tilt:4deg; aspect-ratio:1/1.7; animation-delay:.9s; }
+  @media (max-width:600px){ .float-photo{ width:min(56vw, 190px) !important; margin-bottom:28px; } }
+
+  /* ============================================================
+     MARQUEE
+     ============================================================ */
+  .marquee{
+    overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    padding:16px 0; background:var(--bg-2);
+  }
+  .marquee__track{ display:flex; width:max-content; animation:scroll-x 24s linear infinite; }
+  .marquee__set{ display:flex; align-items:center; gap:36px; padding-right:36px; }
+  .marquee__set span{
+    font-family:var(--display); font-weight:800; font-size:14px; letter-spacing:.06em;
+    color:var(--fg-45); white-space:nowrap;
+  }
+  .marquee__set i{ color:var(--red); font-style:normal; }
+  @keyframes scroll-x{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+
+  /* ============================================================
+     STATEMENT
+     ============================================================ */
+  .statement{ position:relative; padding:150px var(--edge); max-width:var(--container); margin:0 auto; }
+  .statement__text{
+    font-family:var(--display); font-weight:700;
+    font-size:clamp(28px, 4.6vw, 54px);
+    line-height:1.28; max-width:960px;
+  }
+  .statement__text .w{
+    color:transparent; -webkit-text-stroke:1px var(--fg);
+    transition:color .6s ease, -webkit-text-stroke .6s ease;
+  }
+  .statement__text .w.is-red{ -webkit-text-stroke:1px var(--red); }
+  .statement.in-view .statement__text .w{ color:var(--fg); -webkit-text-stroke:1px transparent; }
+  .statement.in-view .statement__text .w.is-red{ color:var(--red); }
+  .statement__caption{ font-family:var(--mono); font-size:12px; color:var(--fg-45); margin-top:26px; letter-spacing:.03em; }
+
+  /* ============================================================
+     SECTION HEAD (shared)
+     ============================================================ */
+  .section__head{
+    display:flex; align-items:baseline; gap:16px;
+    padding:0 var(--edge);
+    max-width:var(--container); margin:0 auto 20px;
+  }
+  .section__num{ font-family:var(--mono); font-size:13px; color:var(--red); }
+  .section__head h2{
+    font-family:var(--display); font-weight:800;
+    font-size:clamp(26px, 3.4vw, 40px);
+    letter-spacing:-.01em;
+  }
+  .section__intro{
+    max-width:var(--container); margin:0 auto 46px; padding:0 var(--edge);
+  }
+  .section__intro p{ color:var(--fg-70); font-size:15px; line-height:1.6; max-width:560px; }
+
+  /* ============================================================
+     GALLERY — where her artwork lives
+     ============================================================ */
+  .gallery{ position:relative; padding:70px 0 130px; background:var(--bg-2); }
+  .gallery__grid{
+    max-width:var(--container); margin:0 auto; padding:0 var(--edge);
+    display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:180px; gap:16px;
+  }
+  @media (max-width:900px){ .gallery__grid{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:520px){ .gallery__grid{ grid-template-columns:1fr; grid-auto-rows:230px; } }
+
+  .art{ position:relative; perspective:900px; cursor:pointer; border-radius:14px; }
+  .art--tall{ grid-row:span 2; }
+  .art__inner{
+    position:absolute; inset:0; border-radius:14px; overflow:hidden;
+    border:1px solid var(--line);
+    background:
+      radial-gradient(120% 140% at 15% 0%, rgba(228,42,29,.24), transparent 60%),
+      linear-gradient(160deg, var(--bg-3), var(--bg-2));
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    transform-style:preserve-3d;
+    transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    padding:16px;
+    text-align:center;
+  }
+  .art:hover .art__inner{ box-shadow:0 24px 46px -18px rgba(0,0,0,.65); border-color:rgba(228,42,29,.4); }
+  .art__mark{ width:32px; height:32px; border:1.5px solid var(--red); transform:rotate(45deg); opacity:.65; flex-shrink:0; }
+  .art__label{ font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; color:var(--fg-45); line-height:1.5; }
+  .art__caption{
+    position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
+    background:linear-gradient(0deg, rgba(0,0,0,.6), transparent);
+    font-family:var(--mono); font-size:11px; color:var(--fg);
+    opacity:0; transition:opacity .25s ease; text-align:left;
+  }
+  .art:hover .art__caption{ opacity:1; }
+
+  /* ============================================================
+     LIGHTBOX
+     ============================================================ */
+  .lightbox{
+    position:fixed; inset:0; z-index:300; padding:40px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(6,4,4,.86); backdrop-filter:blur(8px);
+    opacity:0; pointer-events:none; transition:opacity .3s ease;
+  }
+  .lightbox.is-open{ opacity:1; pointer-events:auto; }
+  .lightbox__box{
+    width:min(680px, 92vw); aspect-ratio:4/5; border-radius:18px; position:relative;
+    border:1px solid var(--line);
+    background:
+      radial-gradient(120% 140% at 20% 0%, rgba(228,42,29,.28), transparent 60%),
+      linear-gradient(160deg, var(--bg-3), var(--bg-2));
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+    transform:scale(.94); transition:transform .3s ease;
+    padding:30px;
+  }
+  .lightbox.is-open .lightbox__box{ transform:scale(1); }
+  .lightbox__mark{ width:60px; height:60px; border:1.5px solid var(--red); transform:rotate(45deg); opacity:.7; }
+  .lightbox__title{ font-family:var(--display); font-weight:700; font-size:21px; }
+  .lightbox__desc{ font-family:var(--mono); font-size:12px; color:var(--fg-45); text-align:center; }
+  .lightbox__close{
+    position:absolute; top:16px; right:16px; width:36px; height:36px; border-radius:100px;
+    border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:14px; cursor:pointer; color:var(--fg-70);
+    transition:background .2s ease, color .2s ease;
+  }
+  .lightbox__close:hover{ background:var(--red); color:var(--on-red); border-color:var(--red); }
+
+  /* ============================================================
+     FAVES (facts about her)
+     ============================================================ */
+  .work{ position:relative; padding:70px 0 130px; }
+  .work__grid{
+    max-width:var(--container); margin:0 auto; padding:0 var(--edge);
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-radius:16px; overflow:hidden;
+  }
+  @media (max-width:900px){ .work__grid{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:600px){ .work__grid{ grid-template-columns:1fr; } }
+
+  .card{ background:var(--bg-2); padding:34px 26px 28px; display:flex; flex-direction:column; gap:16px; perspective:800px; }
+  .card__stage{ height:140px; position:relative; display:flex; align-items:center; justify-content:center; transform-style:preserve-3d; border-radius:10px; overflow:hidden; }
+  .card__stage--photo{ background:var(--bg-3); }
+  .card__stage--photo img{ width:100%; height:100%; object-fit:cover; }
+  .card__cluster{ position:relative; width:0; height:0; transform-style:preserve-3d; animation:spin 22s linear infinite; }
+  .card__meta{ font-family:var(--mono); font-size:11px; color:var(--red); letter-spacing:.05em; }
+  .card__title{ font-family:var(--display); font-weight:700; font-size:19px; }
+  .card__desc{ font-size:13.5px; color:var(--fg-70); line-height:1.55; }
+  .card__tag{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-45);
+    border-top:1px solid var(--line); padding-top:12px; margin-top:auto;
+  }
+
+  @keyframes spin{ from{ transform:rotateY(0deg); } to{ transform:rotateY(360deg); } }
+  .shard{ position:absolute; top:0; left:0; border-radius:3px; }
+  .shard--solid{
+    background:linear-gradient(135deg, var(--red-light), var(--red) 55%, var(--red-deep));
+    box-shadow: inset 3px 3px 6px rgba(255,255,255,.35), inset -4px -4px 10px rgba(0,0,0,.35);
+  }
+  .shard--chrome{
+    background:linear-gradient(135deg, var(--chrome-1), var(--chrome-2) 60%, var(--chrome-3));
+    box-shadow: inset 2px 2px 5px rgba(255,255,255,.6), inset -4px -4px 9px rgba(0,0,0,.25);
+  }
+  .shard--wire{ background:transparent; border:1.5px solid var(--red); opacity:.55; }
+
+  /* ============================================================
+     NAMES / FUN FACTS
+     ============================================================ */
+  .process{ position:relative; padding:130px 0; background:var(--bg-2); }
+  .process__row{
+    max-width:var(--container); margin:0 auto; padding:0 var(--edge);
+    display:grid; grid-template-columns:repeat(3,1fr); gap:40px;
+  }
+  @media (max-width:800px){ .process__row{ grid-template-columns:1fr; gap:64px; } }
+  .step{ text-align:center; }
+  .step__stage{ height:150px; display:flex; align-items:center; justify-content:center; perspective:700px; margin-bottom:24px; }
+  .step__shape{ width:64px; height:64px; transform:rotate(45deg); animation:tilt 6s ease-in-out infinite; }
+  @keyframes tilt{ 0%,100%{ transform:rotate(45deg) rotateY(0deg); } 50%{ transform:rotate(45deg) rotateY(180deg); } }
+  .step--wire .step__shape{ border:1.5px solid var(--red); background:transparent; }
+  .step--shaded .step__shape{ background:linear-gradient(135deg, var(--chrome-1), var(--red-light)); opacity:.85; }
+  .step--final .step__shape{
+    background:linear-gradient(135deg, var(--red-light), var(--red) 55%, var(--red-deep));
+    box-shadow: inset 3px 3px 6px rgba(255,255,255,.35), inset -5px -5px 12px rgba(0,0,0,.35), 0 14px 28px -12px rgba(126,15,18,.55);
+  }
+  .step__num{ font-family:var(--mono); font-size:11px; color:var(--red); display:block; margin-bottom:8px; }
+  .step__title{ font-family:var(--display); font-weight:700; font-size:18px; margin-bottom:8px; }
+  .step__desc{ font-size:13.5px; color:var(--fg-70); max-width:280px; margin:0 auto; line-height:1.55; }
+
+  /* ============================================================
+     ABOUT
+     ============================================================ */
+  .about{ padding:130px 0; }
+  .about__grid{
+    max-width:var(--container); margin:0 auto; padding:0 var(--edge);
+    display:grid; grid-template-columns:.9fr 1.1fr; gap:70px; align-items:center;
+  }
+  @media (max-width:800px){ .about__grid{ grid-template-columns:1fr; gap:50px; } }
+  .about__stage{ height:380px; perspective:1000px; display:flex; align-items:center; justify-content:center; }
+  .about__photo{
+    position:relative; width:260px; height:340px; border-radius:18px; overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.6);
+    transform:rotate(-3deg);
+    transition:transform .4s ease;
+  }
+  .about__photo::after{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(120% 100% at 20% 0%, rgba(228,42,29,.28), transparent 60%);
+    mix-blend-mode:overlay;
+  }
+  .about__photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .about__stage:hover .about__photo{ transform:rotate(0deg) scale(1.02); }
+  .about__cluster{ position:relative; width:0; height:0; transform-style:preserve-3d; animation:spin 30s linear infinite; }
+  .about__text p{ font-size:16.5px; line-height:1.7; color:var(--fg-70); max-width:520px; }
+  .about__names{ margin-top:30px; display:flex; flex-direction:column; gap:12px; }
+  .about__names li{ font-family:var(--mono); font-size:13px; color:var(--fg-45); display:flex; gap:10px; }
+  .about__names li span{ font-family:var(--body); font-weight:600; color:var(--fg); min-width:150px; }
+
+  /* ============================================================
+     CONTACT
+     ============================================================ */
+  .contact{ padding:140px var(--edge) 60px; text-align:center; background:var(--bg-2); }
+  .contact__avatar{
+    width:min(clamp(320px, 52vw, 660px), calc(100vw - (var(--edge) * 2)));
+    height:auto; aspect-ratio:4 / 3;
+    border-radius:10px; overflow:hidden; margin:0 auto 32px;
+    border:2px solid var(--red); box-shadow:0 0 34px rgba(228,42,29,.35);
+  }
+  .contact__avatar img, .contact__avatar video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .contact__cta{
+    font-family:var(--display); font-weight:900;
+    font-size:clamp(40px, 8vw, 92px);
+    line-height:.98; letter-spacing:-.01em; margin-bottom:34px;
+  }
+  .contact__email{
+    display:inline-block; font-family:var(--mono); font-size:16px; padding:14px 30px;
+    border:1.5px solid var(--fg); border-radius:100px;
+    transition:background .25s ease, color .25s ease, border-color .25s ease;
+  }
+  .contact__email:hover{ background:var(--red); border-color:var(--red); color:var(--on-red); }
+  .contact__social{
+    display:flex; gap:26px; justify-content:center; margin:34px 0 60px;
+    font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-45);
+  }
+  .contact__social a:hover{ color:var(--red); }
+  .contact__copy{ font-family:var(--mono); font-size:11px; color:var(--fg-45); }
+
+  /* Phone refinements */
+  @media (max-width:700px){
+    :root{ --edge:20px; }
+    .nav{ padding:16px 20px; }
+    .hero{ min-height:680px; }
+    .hero__content{ padding:108px 20px 80px; }
+    .hero__sub{ font-size:15px; }
+    .statement{ padding:92px var(--edge); }
+    .gallery, .process, .about{ padding-top:88px; padding-bottom:88px; }
+    .contact{ padding:90px 20px 38px; }
+    .contact__avatar{ width:min(100%, 660px); margin-bottom:24px; border-radius:8px; }
+    .contact__cta{ font-size:clamp(42px, 14vw, 66px); margin-bottom:26px; }
+    .contact__email{ width:min(100%, 340px); padding:15px 18px; font-size:14px; }
+    .contact__social{ flex-wrap:wrap; gap:18px 24px; margin:28px 0 42px; }
+  }
+
+  @media (max-width:380px){
+    .hero{ min-height:620px; }
+    .eyebrow{ font-size:10px; letter-spacing:.12em; }
+    .gallery__grid{ grid-auto-rows:200px; }
+  }
+
+  /* Use the About portrait frame (260 × 340) for every photo. */
+  .hero__photo,
+  .float-photo,
+  .float-photo--3,
+  .contact__avatar{
+    width:min(260px, calc(100vw - 40px)) !important;
+    aspect-ratio:13 / 17;
+  }
+  .gallery__grid{
+    grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 260px));
+    grid-auto-rows:340px;
+    justify-content:center;
+  }
+  .art--tall{ grid-row:span 1; }
+  .card__stage--photo{
+    width:min(260px, 100%);
+    height:340px;
+    margin:0 auto;
+  }
+  @media (max-width:300px){
+    .gallery__grid{ grid-auto-rows:calc((100vw - 40px) * 1.3077); }
+    .card__stage--photo{ height:calc((100vw - 40px) * 1.3077); }
+  }
+
+  .reveal{ opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in-view{ opacity:1; transform:translateY(0); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<header class="nav">
+  <div class="nav__mark"><span></span>MK</div>
+  <nav class="nav__links">
+    <a href="#gallery">Gallery</a>
+    <a href="#work">Faves</a>
+    <a href="#process">Names</a>
+    <a href="#about">About</a>
+    <a href="#contact">Say Hi</a>
+  </nav>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="hero">
+  <div class="hero__scene"><canvas id="heroCanvas"></canvas></div>
+  <div class="hero__content">
+    <span class="eyebrow">WELCOME TO MY LITTLE CORNER OF THE INTERNET</span>
+    <h1 class="hero__name">MAKEDA</h1>
+    <div class="hero__aliases">
+      <span class="pill">MKAIKAI</span>
+      <span class="pill pill--alt">mandeul_eojin</span>
+    </div>
+    <p class="hero__sub">Hi, I’m Makeda — a writer, maker, and soft-hearted soul finding beauty in the little things.</p>
+  </div>
+  <div class="scrollcue"><span></span>SCROLL</div>
+  <div class="hero__photo"><img src="images/makeda-image-01.jpeg" alt="Makeda"></div>
+</section>
+
+<div class="marquee">
+  <div class="marquee__track">
+    <div class="marquee__set">
+      <span>MAKEDA <i>◆</i></span><span>MKAIKAI <i>◆</i></span><span>MANDEUL_EOJIN <i>◆</i></span><span>3D ART <i>◆</i></span><span>GOOD VIBES <i>◆</i></span>
+    </div>
+    <div class="marquee__set" aria-hidden="true">
+      <span>MAKEDA <i>◆</i></span><span>MKAIKAI <i>◆</i></span><span>MANDEUL_EOJIN <i>◆</i></span><span>3D ART <i>◆</i></span><span>GOOD VIBES <i>◆</i></span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STATEMENT ============ -->
+<section class="statement" id="statement">
+  <p class="statement__text" id="statementText">
+    <span class="w">Some</span> <span class="w">days</span> <span class="w">I'm</span> <span class="w is-red">Makeda.</span>
+    <span class="w">Some</span> <span class="w">days</span> <span class="w">I'm</span> <span class="w is-red">Mkaikai.</span>
+    <span class="w">On</span> <span class="w">the</span> <span class="w">good</span> <span class="w">days,</span>
+    <span class="w">I'm</span> <span class="w is-red">mandeul_eojin</span> <span class="w">—</span>
+    <span class="w">the</span> <span class="w">one</span> <span class="w">who</span> <span class="w">makes</span> <span class="w">things.</span>
+  </p>
+  
+  <div class="float-photo float-photo--1"><img src="images/makeda-image-02.jpeg" alt="Makeda"></div>
+</section>
+
+<!-- ============ GALLERY ============ -->
+<section class="gallery" id="gallery">
+  <div class="section__head">
+    <span class="section__num">01</span>
+    <h2>GALLERY</h2>
+  </div>
+  <div class="section__intro">
+    <p>Flowers, mostly — in oil pastel, coloured pencil, and graphite. A running wall of what she's been making. Click a piece to open it up.</p>
+  </div>
+  <!--
+    Each tile is generated from the `artPieces` array near the bottom of
+    this file. Add a new piece by giving it a title, tag, and an `img`
+    field (a URL or a data: URI) — no other markup changes needed.
+  -->
+  <div class="gallery__grid" id="galleryGrid"></div>
+  <div class="float-photo float-photo--2"><img src="images/makeda-image-03.jpeg" alt="Makeda"></div>
+</section>
+
+<!-- ============ FAVES ============ -->
+<section class="work" id="work">
+  <div class="section__head">
+    <span class="section__num">02</span>
+    <h2>A FEW OF MY FAVORITE THINGS</h2>
+  </div>
+  <div class="work__grid" id="workGrid"></div>
+  <div class="float-photo float-photo--3"><img src="images/makeda-image-04.jpeg" alt="Makeda"></div>
+</section>
+
+<!-- ============ NAMES / FUN FACTS ============ -->
+<section class="process" id="process">
+  <div class="section__head">
+    <span class="section__num">03</span>
+    <h2>A FEW FUN FACTS</h2>
+  </div>
+  <div class="process__row">
+    <div class="step step--wire reveal">
+      <div class="step__stage"><div class="step__shape"></div></div>
+      <span class="step__num">FACT 01</span>
+      <h3 class="step__title">She's an Over-Giver</h3>
+      <p class="step__desc">She'll hand a stranger her last cedi if she's not careful — so sometimes she has to hold back on purpose.</p>
+    </div>
+    <div class="step step--shaded reveal">
+      <div class="step__stage"><div class="step__shape"></div></div>
+      <span class="step__num">FACT 02</span>
+      <h3 class="step__title">Sees Out of One Eye</h3>
+      <p class="step__desc">She's practically blind in one eye. It also doubles as a handy excuse — glasses off in public and she's got a legit reason not to notice you.</p>
+    </div>
+    <div class="step step--final reveal">
+      <div class="step__stage"><div class="step__shape"></div></div>
+      <span class="step__num">FACT 03</span>
+      <h3 class="step__title">Legendary Nasal Allergies</h3>
+      <p class="step__desc">Her dorm mates can confirm — her allergies are loud enough to wake people up.</p>
+    </div>
+  </div>
+  <div class="float-photo float-photo--4"><img src="images/makeda-image-05.jpeg" alt="Makeda"></div>
+</section>
+
+<!-- ============ ABOUT ============ -->
+<section class="about" id="about">
+  <div class="section__head">
+    <span class="section__num">04</span>
+    <h2>ABOUT</h2>
+  </div>
+  <div class="about__grid">
+    <div class="about__stage">
+      <div class="about__photo"><img src="images/makeda-image-06.jpeg" alt="Makeda"></div>
+    </div>
+    <div class="about__text">
+      <p>"So who am I? Well, I'm a person going through an identity crisis right now, if I'm honest. But I suppose I'm a loving person. I smile a lot, but I have a naturally serious expression. I'm not really like my peers — not into everything that's 'all the rage.' I'm really good at adapting, because of the different sides of life I've been exposed to."</p>
+      <p>"I love God more than anything. I was taught to be independent from a young age. I love caring for people, and writing — writing is my main source of escape and therapy, even though people just don't get me. I'm misunderstood a lot, honestly. I guess you could say I'm beautiful, but I don't want to blow my own trumpet. I really love my lashes though — they're a nice highlight for me."</p>
+      <ul class="about__names">
+        <li><span>Adigbo Makeda Sitsofe Atese Yaaya</span> — full name</li>
+        <li><span>Mkaikai</span> — nickname</li>
+        <li><span>mandeul_eojin</span> — nickname</li>
+      </ul>
+    </div>
+  </div>
+  <div class="float-photo float-photo--5"><img src="images/makeda-image-07.jpeg" alt="Makeda"></div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<footer class="contact" id="contact">
+  <div class="contact__avatar"><img src="images/makeda-image-08.jpeg" alt="Makeda"></div>
+  <h2 class="contact__cta">COME<br>SAY HI</h2>
+  <a class="contact__email" href="https://www.snapchat.com/add/mandeul_eojin" target="_blank" rel="noopener noreferrer">SNAPCHAT</a>
+  <div class="contact__social">
+    <a href="https://www.snapchat.com/add/mandeul_eojin" target="_blank" rel="noopener noreferrer">Snapchat</a>
+    <a href="#">ArtStation</a>
+  </div>
+  <p class="contact__copy">© 2026 Makeda — MSKmadeIt.</p>
+</footer>
+
+<!-- ============ LIGHTBOX ============ -->
+<div class="lightbox" id="lightbox">
+  <div class="lightbox__box">
+    <button class="lightbox__close" id="lightboxClose" aria-label="Close">✕</button>
+    <div class="lightbox__mark" id="lightboxMark"></div>
+    <h3 class="lightbox__title" id="lightboxTitle"></h3>
+    <p class="lightbox__desc" id="lightboxDesc"></p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------
+  // Cursor glow — subtle red spotlight that follows the pointer
+  // ---------------------------------------------------------------
+  const glow = document.getElementById('cursorGlow');
+  if (!reduceMotion) {
+    window.addEventListener('mousemove', (e) => {
+      glow.style.left = e.clientX + 'px';
+      glow.style.top = e.clientY + 'px';
+      glow.style.opacity = 1;
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Small CSS 3D cluster generator, reused for the About shape and
+  // the Faves cards (cheap, no WebGL needed for these small ones).
+  // ---------------------------------------------------------------
+  function buildCluster(container, { count, radius, sizeMin, sizeMax, wireRatio = 0.15, chromeRatio = 0.18 }) {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < count; i++) {
+      const y = 1 - (i / (count - 1)) * 2;
+      const r = Math.sqrt(1 - y * y);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+      const x = Math.cos(theta) * r;
+      const z = Math.sin(theta) * r;
+      const azimuth = Math.atan2(x, z) * (180 / Math.PI);
+      const elevation = Math.asin(y) * (180 / Math.PI);
+      const size = sizeMin + Math.random() * (sizeMax - sizeMin);
+      const roll = Math.floor(Math.random() * 360);
+      const roll1 = Math.random();
+      let variant = 'shard--solid';
+      if (roll1 < wireRatio) variant = 'shard--wire';
+      else if (roll1 < wireRatio + chromeRatio) variant = 'shard--chrome';
+      const shard = document.createElement('div');
+      shard.className = 'shard ' + variant;
+      shard.style.width = size + 'px';
+      shard.style.height = size + 'px';
+      shard.style.marginLeft = (-size / 2) + 'px';
+      shard.style.marginTop = (-size / 2) + 'px';
+      shard.style.transform =
+        `rotateY(${azimuth}deg) rotateX(${-elevation}deg) translateZ(${radius}px) rotateZ(${roll}deg)`;
+      frag.appendChild(shard);
+    }
+    container.appendChild(frag);
+  }
+
+
+  // ---------------------------------------------------------------
+  // Faves grid
+  // ---------------------------------------------------------------
+  const favorites = [
+    { n: '01', title: 'All Kinds of Music', tag: 'Music', meta: 'ON REPEAT', desc: 'She enjoys all types of music and can always find something to love in every genre.', img: 'images/music-collage.png' },
+    { n: '02', title: 'Fried Yam & Pork', tag: 'Food', meta: 'GO-TO ORDER', desc: 'Crispy fried yam with spicy pepper sauce, fried pork, and onions — her go-to plate.', img: 'images/makeda-image-09.jpeg' },
+    { n: '03', title: 'Quality Time with Family', tag: 'Family', meta: 'CHERISHED MOMENTS', desc: 'Laughing, talking, and making memories together — this is time she truly values.', img: 'images/family-time.png' },
+    { n: '04', title: 'Reading on the Beach', tag: 'Hobby', meta: 'WEEKEND MODE', desc: 'Book in hand, ocean in the background — this is her idea of a perfect afternoon.', img: 'images/makeda-image-10.jpeg' },
+  ];
+  const workGrid = document.getElementById('workGrid');
+  favorites.forEach((p) => {
+    const card = document.createElement('div');
+    card.className = 'card reveal';
+    const stage = p.img
+      ? `<div class="card__stage card__stage--photo"><img src="${p.img}" alt="${p.title}"></div>`
+      : `<div class="card__stage"><div class="card__cluster"></div></div>`;
+    card.innerHTML = `
+      ${stage}
+      <span class="card__meta">${p.meta}</span>
+      <h3 class="card__title">${p.n} — ${p.title}</h3>
+      <p class="card__desc">${p.desc}</p>
+      <span class="card__tag">${p.tag}</span>
+    `;
+    workGrid.appendChild(card);
+    if (!p.img) {
+      buildCluster(card.querySelector('.card__cluster'), { count: 9, radius: 40, sizeMin: 10, sizeMax: 24, wireRatio: .2, chromeRatio: .2 });
+    }
+  });
+
+  // ---------------------------------------------------------------
+  // Gallery — artwork tiles with 3D hover-tilt + a lightbox.
+  // Give any piece an `img` field once real art is ready and the
+  // placeholder frame is swapped for that image automatically.
+  // ---------------------------------------------------------------
+  const artPieces = [
+    { n: "01", title: "Golden Bloom", tag: "Oil pastel", tall: true, img: "images/makeda-image-11.jpeg" },
+    { n: "02", title: "Hibiscus Study", tag: "Coloured pencil", tall: true, img: "images/makeda-image-12.jpeg" },
+    { n: "03", title: "Blue Lily", tag: "Oil pastel", tall: false, img: "images/makeda-image-13.jpeg" },
+    { n: "04", title: "Garden Tangle", tag: "Coloured pencil", tall: false, img: "images/makeda-image-14.jpeg" },
+    { n: "05", title: "Botanical Sketch", tag: "Graphite", tall: true, img: "images/makeda-image-15.jpeg" },
+    { n: "06", title: "Branching Out", tag: "Line drawing", tall: false, img: "images/makeda-image-16.jpeg" },
+  ];
+  const galleryGrid = document.getElementById('galleryGrid');
+  const lightbox = document.getElementById('lightbox');
+  const lightboxTitle = document.getElementById('lightboxTitle');
+  const lightboxDesc = document.getElementById('lightboxDesc');
+  const lightboxMark = document.getElementById('lightboxMark');
+
+  artPieces.forEach((p) => {
+    const el = document.createElement('div');
+    el.className = 'art' + (p.tall ? ' art--tall' : '');
+    const imgBg = p.img ? `background-image:url('${p.img}'); background-size:cover; background-position:center;` : '';
+    el.innerHTML = `
+      <div class="art__inner" style="${imgBg}">
+        ${p.img ? '' : `<div class="art__mark"></div><span class="art__label">ARTWORK ${p.n}<br>[drop her image here]</span>`}
+        <div class="art__caption">${p.title} — ${p.tag}</div>
+      </div>
+    `;
+    if (!reduceMotion) {
+      el.addEventListener('mousemove', (e) => {
+        const r = el.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width - 0.5;
+        const py = (e.clientY - r.top) / r.height - 0.5;
+        el.querySelector('.art__inner').style.transform =
+          `rotateY(${px * 14}deg) rotateX(${-py * 14}deg) translateZ(6px)`;
+      });
+      el.addEventListener('mouseleave', () => {
+        el.querySelector('.art__inner').style.transform = '';
+      });
+    }
+    el.addEventListener('click', () => {
+      lightboxTitle.textContent = p.title;
+      lightboxDesc.textContent = `ARTWORK ${p.n} — ${p.tag}`;
+      lightboxMark.style.display = p.img ? 'none' : 'block';
+      lightbox.classList.add('is-open');
+    });
+    galleryGrid.appendChild(el);
+  });
+
+  document.getElementById('lightboxClose').addEventListener('click', () => lightbox.classList.remove('is-open'));
+  lightbox.addEventListener('click', (e) => { if (e.target === lightbox) lightbox.classList.remove('is-open'); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') lightbox.classList.remove('is-open'); });
+
+  // ---------------------------------------------------------------
+  // Scroll reveals
+  // ---------------------------------------------------------------
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('in-view'); });
+  }, { threshold: 0.3 });
+  document.querySelectorAll('.reveal, .statement').forEach(el => io.observe(el));
+
+  // ---------------------------------------------------------------
+  // HERO — real WebGL scene: a metallic red torus knot with a soft
+  // wireframe shell and a handful of orbiting shards, tilting gently
+  // toward the cursor.
+  // ---------------------------------------------------------------
+  (function initHero() {
+    const canvas = document.getElementById('heroCanvas');
+    if (!canvas || typeof THREE === 'undefined') return;
+    const container = canvas.parentElement;
+    let width = container.clientWidth, height = container.clientHeight;
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    } catch (e) { return; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    camera.position.set(0, 0, 9);
+
+    scene.add(new THREE.AmbientLight(0x2a1414, 0.7));
+    const key = new THREE.PointLight(0xffffff, 1.5, 60); key.position.set(6, 6, 8); scene.add(key);
+    const rim = new THREE.PointLight(0xff4433, 1.8, 60); rim.position.set(-7, -3, -5); scene.add(rim);
+
+    const knotGeo = new THREE.TorusKnotGeometry(1.85, 0.55, 180, 24, 2, 3);
+    const knotMat = new THREE.MeshStandardMaterial({
+      color: 0xE42A1D, metalness: 0.75, roughness: 0.28,
+      emissive: 0x2a0505, emissiveIntensity: 0.35
+    });
+    const knot = new THREE.Mesh(knotGeo, knotMat);
+    scene.add(knot);
+
+    const wireGeo = new THREE.TorusKnotGeometry(2.05, 0.6, 90, 12, 2, 3);
+    const wireMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.08 });
+    const wireKnot = new THREE.Mesh(wireGeo, wireMat);
+    scene.add(wireKnot);
+
+    const shardGeo = new THREE.IcosahedronGeometry(0.22, 0);
+    const shards = [];
+    for (let i = 0; i < 10; i++) {
+      const isChrome = i % 3 === 0;
+      const mat = new THREE.MeshStandardMaterial({
+        color: isChrome ? 0xB4BAC2 : 0xE42A1D, metalness: 0.8, roughness: 0.25
+      });
+      const mesh = new THREE.Mesh(shardGeo, mat);
+      mesh.userData = { r: 3.2 + Math.random() * 1.5, speed: 0.18 + Math.random() * 0.3, offset: Math.random() * Math.PI * 2, tilt: Math.random() * Math.PI };
+      scene.add(mesh);
+      shards.push(mesh);
+    }
+
+    function onResize() {
+      width = container.clientWidth; height = container.clientHeight;
+      camera.aspect = width / height; camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+    window.addEventListener('resize', onResize);
+
+    let targetRotX = 0, targetRotY = 0, curRotX = 0, curRotY = 0;
+    if (!reduceMotion) {
+      window.addEventListener('mousemove', (e) => {
+        targetRotY = (e.clientX / window.innerWidth - 0.5) * 0.6;
+        targetRotX = (e.clientY / window.innerHeight - 0.5) * 0.4;
+      });
+    }
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+      curRotX += (targetRotX - curRotX) * 0.04;
+      curRotY += (targetRotY - curRotY) * 0.04;
+      knot.rotation.x = t * 0.15 + curRotX;
+      knot.rotation.y = t * 0.22 + curRotY;
+      wireKnot.rotation.copy(knot.rotation);
+      shards.forEach(s => {
+        const { r, speed, offset, tilt } = s.userData;
+        const a = t * speed + offset;
+        s.position.set(Math.cos(a) * r, Math.sin(a * 0.7 + tilt) * 1.6, Math.sin(a) * r * 0.6);
+        s.rotation.x = a; s.rotation.y = a * 1.3;
+      });
+      camera.position.x += (curRotY * 2 - camera.position.x) * 0.05;
+      camera.position.y += (-curRotX * 2 - camera.position.y) * 0.05;
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+    }
+    animate();
+  })();
+
+  // Replace the two supplied-photo placeholders with unobtrusive, muted loops.
+  // The original image stays as the video's poster and is restored if loading fails.
+  (function addAmbientVideos() {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function replaceImageWithVideo(selector, source) {
+      const frame = document.querySelector(selector);
+      const image = frame && frame.querySelector('img');
+      if (!image) return;
+
+      const video = document.createElement('video');
+      video.src = source;
+      video.poster = image.currentSrc || image.src;
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.setAttribute('aria-label', image.alt || 'Decorative video');
+      if (!reduceMotion) video.autoplay = true;
+      video.addEventListener('error', () => video.replaceWith(image), { once:true });
+      image.replaceWith(video);
+    }
+
+    replaceImageWithVideo('.float-photo--3', 'Snapchat-362008915.mp4');
+    replaceImageWithVideo('.contact__avatar', 'Snapchat-384374434.mp4');
+  })();
+</script>
+
+</body>
+</html>
+
