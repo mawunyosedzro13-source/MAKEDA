@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -890,34 +890,47 @@
     animate();
   })();
 
-  // Replace the two supplied-photo placeholders with unobtrusive, muted loops.
-  // The original image stays as the video's poster and is restored if loading fails.
-  (function addAmbientVideos() {
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Replace supplied-photo placeholders with muted looping videos.
+// Original images remain as posters and are restored if video loading fails.
+(function addAmbientVideos() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    function replaceImageWithVideo(selector, source) {
-      const frame = document.querySelector(selector);
-      const image = frame && frame.querySelector('img');
-      if (!image) return;
+  function replaceImageWithVideo(selector, source) {
+    const frame = document.querySelector(selector);
+    const image = frame && frame.querySelector('img');
+    if (!image) return;
 
-      const video = document.createElement('video');
-      video.src = source;
-      video.poster = image.currentSrc || image.src;
-      video.muted = true;
-      video.loop = true;
-      video.playsInline = true;
-      video.preload = 'metadata';
-      video.setAttribute('aria-label', image.alt || 'Decorative video');
-      if (!reduceMotion) video.autoplay = true;
-      video.addEventListener('error', () => video.replaceWith(image), { once:true });
-      image.replaceWith(video);
+    const video = document.createElement('video');
+    video.src = source;
+    video.poster = image.currentSrc || image.src;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    video.setAttribute('aria-label', image.alt || 'Decorative video');
+
+    if (!reduceMotion) {
+      video.autoplay = true;
     }
 
-    replaceImageWithVideo('.float-photo--3', 'Snapchat-362008915.mp4');
-    replaceImageWithVideo('.contact__avatar', 'Snapchat-384374434.mp4');
-  })();
+    video.addEventListener('error', () => {
+      video.replaceWith(image);
+    }, { once: true });
+
+    image.replaceWith(video);
+  }
+
+  // Existing videos
+  replaceImageWithVideo('.float-photo--3', 'Snapchat-362008915.mp4');
+  replaceImageWithVideo('.contact__avatar', 'Snapchat-384374434.mp4');
+
+  // NEW: Fun Facts video
+  replaceImageWithVideo('.float-photo--4', 'Snapchat-252248576.mp4');
+
+  // NEW: About video
+  replaceImageWithVideo('.float-photo--5', 'Snapchat-389837821.mp4');
+})();
 </script>
 
 </body>
 </html>
-
